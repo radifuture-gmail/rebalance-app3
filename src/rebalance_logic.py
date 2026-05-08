@@ -5,7 +5,7 @@ from datetime import datetime
 
 # 基準構成比率
 BASE_RATIOS = {
-    "BOXX": 0.10, "GDE": 0.30, "RSSB": 0.30, "DBMF": 0.30
+    "PFIX": 0.10, "COM": 0.20, "GDE": 0.30, "RSSB": 0.10, "DBMF": 0.30, "BOXX": 0.0
 }
 
 def calculate_dynamic_ratios(indicators, policy_rate):
@@ -16,8 +16,8 @@ def calculate_dynamic_ratios(indicators, policy_rate):
         return BASE_RATIOS.copy()
         
     ratios = BASE_RATIOS.copy()
-    non_boxx_tickers = ["GDE", "RSSB", "DBMF"]
-    all_tickers = ["BOXX", "GDE", "RSSB", "DBMF"]
+    non_boxx_tickers = ["PFIX", "COM", "GDE", "RSSB", "DBMF"]
+    all_tickers = ["PFIX", "COM", "GDE", "RSSB", "DBMF", "BOXX"]
     
     # 1. BOXX比率調整
     other_returns = [indicators.loc[t, "return_1m_annualized"] for t in non_boxx_tickers]

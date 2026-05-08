@@ -50,7 +50,7 @@ def show_logic_summary(indicators, final_ratios, policy_rate):
     st.subheader("💡 判断過程の可視化 (ロジック透明性)")
     
     # BOXX調整の説明
-    non_boxx_returns = [indicators.loc[t, "return_1m_annualized"] for t in ["GDE", "RSSB", "DBMF"]]
+    non_boxx_returns = [indicators.loc[t, "return_1m_annualized"] for t in ["PFIX", "COM", "GDE", "RSSB", "DBMF"]]
     max_return = max(max(non_boxx_returns), 0.03)
     boxx_diff = policy_rate - max_return
     
@@ -62,9 +62,9 @@ def show_logic_summary(indicators, final_ratios, policy_rate):
         st.write(f"  → 判定: BOXX増加なし (デフォルト10.0%基準)")
 
     # MA乖離の説明
-    st.write(f"**2. 個別銘柄のMA乖離判定 (GDE/RSSB/DBMF):**")
+    st.write(f"**2. 個別銘柄のMA乖離判定 (PFIX/COM/GDE/RSSB/DBMF):**")
     summary_data = []
-    for ticker in ["GDE", "RSSB", "DBMF"]:
+    for ticker in ["PFIX", "COM", "GDE", "RSSB", "DBMF"]:
         ma_ratio = (indicators.loc[ticker, "ma_3m"] / indicators.loc[ticker, "ma_200d"]) - 1
         is_recovering = indicators.loc[ticker, "ma_1m"] >= indicators.loc[ticker, "ma_3m"]
         

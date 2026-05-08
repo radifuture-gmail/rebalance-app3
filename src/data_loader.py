@@ -2,7 +2,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 
-def get_etf_data(tickers=["BOXX", "GDE", "RSSB", "DBMF"], period="2y"):
+def get_etf_data(tickers=["PFIX", "COM", "GDE", "RSSB", "DBMF", "BOXX"], period="2y"):
     """
     Yahoo FinanceからETFの価格データを取得する。
     yfinanceは休日のデータを含まないため、最新の行を参照することで自動的に「直近の平日」が取得されます。
