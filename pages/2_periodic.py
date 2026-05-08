@@ -14,10 +14,19 @@ from src.visualizer import (
 
 # --- URL同期用ヘルパー関数 ---
 def sync_current_state_to_url():
-    """現在の総額設定と各銘柄の株数をURLに保存する"""
+    tickers = ["PFIX", "COM", "GDE", "RSSB", "DBMF", "BOXX"]
+    latest_holdings = {}
+    for t in tickers:
+        key = f"holding_{t}"
+        if key in st.session_state:
+            latest_holdings[t] = st.session_state[key]
+        else:
+            latest_holdings[t] = st.session_state.get('virtual_holdings', {}).get(t, 0.0)
+    
+    st.session_state['virtual_holdings'] = latest_holdings
     params = {
         "capital": st.session_state.get('total_capital', 100000.0),
-        "holdings": st.session_state.get('virtual_holdings', {})
+        "holdings": latest_holdings
     }
     sync_params_to_url(params)
 
@@ -32,16 +41,6 @@ if indicators.empty:
     st.error("データの取得または計算に失敗しました。")
     st.stop()
 
-# --- URL同期用ヘルパー関数 ---
-def sync_current_state_to_url():
-    """現在の総額設定と各銘柄の株数をURLに保存する"""
-    params = {
-        "capital": st.session_state.get('total_capital', 100000.0),
-        "holdings": st.session_state.get('virtual_holdings', {})
-    }
-    sync_params_to_url(params)
-
-# --- コールバック関数：保有数量のリセット・同期用 ---
 def reset_holdings_periodic_callback():
     """設定金額に基づきウィジェットの値を上書きし、URLに同期する"""
     current_capital = st.session_state.get('total_capital', 100000.0)
@@ -51,19 +50,19 @@ def reset_holdings_periodic_callback():
     st.session_state['virtual_holdings'] = new_holdings
     st.session_state['last_synced_capital_periodic'] = current_capital
     for t in tickers:
-        st.session_state[f"periodic_input_val_{t}"] = float(new_holdings.get(t, 0.0))
+        st.session_state[f"holding_{t}"] = float(new_holdings.get(t, 0.0))
     sync_current_state_to_url()
 
 def on_holding_change(ticker):
     """手入力で株数が変更された時にセッションとURLを更新する"""
-    st.session_state['virtual_holdings'][ticker] = st.session_state[f"periodic_input_val_{ticker}"]
+    st.session_state['virtual_holdings'][ticker] = st.session_state[f"holding_{ticker}"]
     sync_current_state_to_url()
 
 def apply_periodic_rebalance_callback(new_shares_dict):
     """リバランス実行後の株数を反映し、URLに同期する"""
     for t, shares in new_shares_dict.items():
         st.session_state['virtual_holdings'][t] = shares
-        st.session_state[f"periodic_input_val_{t}"] = shares
+        st.session_state[f"holding_{t}"] = shares
     sync_current_state_to_url()
 
 # 2. 初期化判定
@@ -76,7 +75,7 @@ if not st.session_state.get('virtual_holdings'):
 else:
     # URL 読込済みの値をウィジェット State に同期
     for t in tickers:
-        key = f"periodic_input_val_{t}"
+        key = f"holding_{t}"
         if key not in st.session_state:
             st.session_state[key] = float(st.session_state['virtual_holdings'].get(t, 0.0))
     st.session_state['last_synced_capital_periodic'] = total_capital
@@ -119,7 +118,7 @@ with st.expander("保有数量を手動で調整", expanded=True):
     col_input = st.columns(len(tickers))
     current_holdings = {}
     for i, t in enumerate(tickers):
-        key = f"periodic_input_val_{t}"
+        key = f"holding_{t}"
         current_holdings[t] = col_input[i].number_input(
             f"{t} 保有数量", 
             step=1.0,

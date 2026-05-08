@@ -33,17 +33,24 @@ except ImportError as e:
     st.info(f"現在のPython検索パス: {sys.path}")
     st.stop()
 
-
 st.title("🔍 乖離度リバランス判定 (Daily Check)")
-
 st.info("💡 運用ルール：乖離判定は日次で行うが、リバランス執行は週1回までとする。")
 
-# --- URL同期用ヘルパー関数 ---
+# --- URL同期用ヘルパー関数（堅牢化） ---
 def sync_current_state_to_url():
-    """現在の総額設定と各銘柄の株数をURLに保存する"""
+    tickers = ["PFIX", "COM", "GDE", "RSSB", "DBMF", "BOXX"]
+    latest_holdings = {}
+    for t in tickers:
+        key = f"holding_{t}"
+        if key in st.session_state:
+            latest_holdings[t] = st.session_state[key]
+        else:
+            latest_holdings[t] = st.session_state.get('virtual_holdings', {}).get(t, 0.0)
+    
+    st.session_state['virtual_holdings'] = latest_holdings
     params = {
         "capital": st.session_state.get('total_capital', 100000.0),
-        "holdings": st.session_state.get('virtual_holdings', {})
+        "holdings": latest_holdings
     }
     sync_params_to_url(params)
 
@@ -62,26 +69,23 @@ if indicators.empty:
 total_capital = st.session_state.get('total_capital', 100000.0)
 
 def reset_holdings_callback():
-    """設定金額に基づき、仮想保有数を計算してリセットする"""
-    new_holdings = get_virtual_current_holdings(
-        df_prices, policy_rate, initial_capital=st.session_state.get('total_capital', 100000.0)
-    )
+    new_holdings = get_virtual_current_holdings(df_prices, policy_rate, initial_capital=total_capital)
     st.session_state['virtual_holdings'] = new_holdings
-    st.session_state['last_synced_capital_dev'] = st.session_state.get('total_capital', 100000.0)
+    st.session_state['last_synced_capital_dev'] = total_capital
     for t in tickers:
-        st.session_state[f"dev_input_val_{t}"] = float(new_holdings.get(t, 0.0))
+        st.session_state[f"holding_{t}"] = float(new_holdings.get(t, 0.0))
     sync_current_state_to_url()
 
 def on_holding_change(ticker):
     """手入力で株数が変更された時にセッションとURLを更新する"""
-    st.session_state['virtual_holdings'][ticker] = st.session_state[f"dev_input_val_{ticker}"]
+    st.session_state['virtual_holdings'][ticker] = st.session_state[f"holding_{ticker}"]
     sync_current_state_to_url()
 
 def apply_rebalance_callback(new_shares_dict):
     """リバランス実行後の株数を反映し、URLに保存する"""
     for t, shares in new_shares_dict.items():
         st.session_state['virtual_holdings'][t] = shares
-        st.session_state[f"dev_input_val_{t}"] = shares
+        st.session_state[f"holding_{t}"] = shares
     sync_current_state_to_url()
 
 # 2. 初期化判定
@@ -92,7 +96,7 @@ if not st.session_state.get('virtual_holdings'):
 else:
     # URLから読み込まれた株数がある場合、ウィジェット用Stateに値を同期する
     for t in tickers:
-        key = f"dev_input_val_{t}"
+        key = f"holding_{t}"
         if key not in st.session_state:
             st.session_state[key] = float(st.session_state['virtual_holdings'].get(t, 0.0))
     st.session_state['last_synced_capital_dev'] = total_capital
@@ -120,7 +124,7 @@ with st.expander("保有数量を手動で調整", expanded=True):
     col_input = st.columns(len(tickers))
     current_holdings = {}
     for i, t in enumerate(tickers):
-        key = f"dev_input_val_{t}"
+        key = f"holding_{t}"
         current_holdings[t] = col_input[i].number_input(
             f"{t} 保有数量", 
             step=1.0,

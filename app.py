@@ -18,15 +18,28 @@ if 'initialized' not in st.session_state:
     # 保有株数の設定 (URLにあればそれを採用、なければ空にする)
     # 空の場合は各ページの初期化ロジックで「総額」を基準に計算される
     st.session_state['virtual_holdings'] = url_params.get("holdings", {})
-    
     st.session_state['initialized'] = True
 
 # 3. URL同期用のヘルパー関数
 def sync_all_to_url():
-    """現在の総額と保有株数をまとめてURLパラメータに保存する"""
+    """現在の総額と、画面上の最新の保有株数を強制収集してURLパラメータに保存する"""
+    tickers = ["PFIX", "COM", "GDE", "RSSB", "DBMF", "BOXX"]
+    latest_holdings = {}
+    
+    # ウィジェットの最新値を直接読みに行く
+    for t in tickers:
+        key = f"holding_{t}" # 統一されたキー
+        if key in st.session_state:
+            latest_holdings[t] = st.session_state[key]
+        else:
+            latest_holdings[t] = st.session_state.get('virtual_holdings', {}).get(t, 0.0)
+            
+    # マスターデータも最新化
+    st.session_state['virtual_holdings'] = latest_holdings
+    
     params = {
         "capital": st.session_state['total_capital'],
-        "holdings": st.session_state['virtual_holdings']
+        "holdings": latest_holdings
     }
     sync_params_to_url(params)
 
