@@ -1,5 +1,6 @@
 import yfinance as yf
 import pandas as pd
+import streamlit as st
 from datetime import datetime
 
 def get_etf_data(tickers=["PFIX", "COM", "GDE", "RSSB", "DBMF", "BOXX"], period="2y"):
@@ -10,14 +11,40 @@ def get_etf_data(tickers=["PFIX", "COM", "GDE", "RSSB", "DBMF", "BOXX"], period=
     # auto_adjust=False を明示して Adj Close を取得しやすくする
     df = yf.download(tickers, period=period, auto_adjust=False)
     
-    # カラムがMultiIndexの場合とそうでない場合の両方に対応
-    if "Adj Close" in df.columns:
-        data = df["Adj Close"]
-    elif "Close" in df.columns:
-        data = df["Close"]
+    # yfinanceのバージョン違いによるMultiIndexの構造変化に対応
+    if isinstance(df.columns, pd.MultiIndex):
+        if "Adj Close" in df.columns.get_level_values(0):
+            data = df["Adj Close"]
+        elif "Adj Close" in df.columns.get_level_values(1):
+            data = df.xs("Adj Close", axis=1, level=1)
+        elif "Close" in df.columns.get_level_values(0):
+            data = df["Close"]
+        elif "Close" in df.columns.get_level_values(1):
+            data = df.xs("Close", axis=1, level=1)
+        else:
+            st.error("❌ 価格データの抽出に失敗しました。")
+            st.stop()
     else:
-        # 万が一取得できなかった場合のエラー回避
-        raise KeyError("データの取得に失敗しました。Tickerが正しいか、ネットワークを確認してください。")
+        if "Adj Close" in df.columns:
+            data = df["Adj Close"]
+        elif "Close" in df.columns:
+            data = df["Close"]
+        else:
+            st.error("❌ 価格データが見つかりません。")
+            st.stop()
+
+    # もし1銘柄しか取得できずSeriesになってしまった場合の保護
+    if isinstance(data, pd.Series):
+        data = data.to_frame(name=tickers[0] if len(tickers)==1 else "Unknown")
+
+    # 取得失敗・欠損銘柄のチェック（すべてNaNの列も除外）
+    valid_tickers = data.dropna(axis=1, how='all').columns
+    missing_tickers = [t for t in tickers if t not in valid_tickers]
+    
+    if missing_tickers:
+        st.warning(f"⚠️ Yahoo Financeからのデータ取得エラー: 以下の銘柄のデータが一時的に取得できませんでした: **{', '.join(missing_tickers)}**")
+        st.info("💡 理由: Streamlit CloudからのアクセスがYahoo FinanceのAPI制限(Rate Limit)に引っかかっている可能性があります。\n\n**対策**: データが欠損したまま進めると「不足銘柄を誤って全売却指示する」などの致命的な計算エラーが起きるため、安全のために処理を中断しました。数分待ってからページをリロードしてください。")
+        st.stop() # 💡ここでアプリを安全に強制停止させます
         
     # 銘柄ごとの休場日の違いを考慮し、欠損値を前方埋め
     data = data.ffill()
