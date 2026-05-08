@@ -49,7 +49,7 @@ def sync_current_state_to_url():
 
 # 1. データ取得
 with st.spinner("最新市場データを取得中..."):
-    tickers = ["BOXX", "GDE", "RSSB", "DBMF"]
+    tickers = ["PFIX", "COM", "GDE", "RSSB", "DBMF", "BOXX"]
     df_prices = get_etf_data(tickers)
     policy_rate = get_risk_free_rate()
     indicators = calculate_technical_indicators(df_prices)
