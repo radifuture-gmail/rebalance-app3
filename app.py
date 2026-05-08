@@ -79,6 +79,14 @@ pg = st.navigation([
     st.Page("pages/2_periodic.py", title="2. 定期リバランス", icon="📅"),
 ])
 
+with st.sidebar:
+    st.divider() # 区切り線
+    st.subheader("設定・保存")
+    if st.button("🔗 現在の状態をURLに保存", use_container_width=True, help="現在のポートフォリオ総額と保有株数をURLパラメータに変換して保存します"):
+        sync_all_to_url()
+        # 保存したことを通知（トースト通知にすると操作を邪魔しません）
+        st.toast("URLに保存しました！ブラウザのURLをコピーしてください。")
+
 # サイドバーへのステータス表示
 if "s" in st.query_params:
     st.sidebar.success("設定と株数をURLに同期中")
